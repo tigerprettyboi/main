@@ -1,0 +1,794 @@
+-- Roblox Library GUI
+-- สร้างโดย Claude (2025)
+
+local LibraryGUI = {}
+LibraryGUI.__index = LibraryGUI
+
+-- ตั้งค่าสีพื้นฐาน
+local DefaultColors = {
+    Background = Color3.fromRGB(35, 35, 45),
+    Accent = Color3.fromRGB(85, 170, 255),
+    Text = Color3.fromRGB(255, 255, 255),
+    Secondary = Color3.fromRGB(50, 50, 65),
+    Highlight = Color3.fromRGB(100, 190, 255),
+    Error = Color3.fromRGB(255, 75, 75),
+    Success = Color3.fromRGB(75, 255, 120)
+}
+
+-- ฟังก์ชันสร้าง GUI หลัก
+function LibraryGUI.new(title, parent)
+    local self = setmetatable({}, LibraryGUI)
+    
+    -- ตั้งค่าเริ่มต้น
+    self.Title = title or "Library GUI"
+    self.Parent = parent or game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    self.Colors = DefaultColors
+    self.Elements = {}
+    self.Tabs = {}
+    self.CurrentTab = nil
+    self.Dragging = false
+    self.DragStart = nil
+    self.StartPosition = nil
+    
+    -- สร้าง GUI หลัก
+    self:CreateMainGUI()
+    
+    return self
+end
+
+-- สร้าง GUI หลัก
+function LibraryGUI:CreateMainGUI()
+    -- ScreenGui หลัก
+    self.ScreenGui = Instance.new("ScreenGui")
+    self.ScreenGui.Name = "LibraryGUI_" .. self.Title
+    self.ScreenGui.Parent = self.Parent
+    self.ScreenGui.ResetOnSpawn = false
+    self.ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- กรอบหลัก
+    self.MainFrame = Instance.new("Frame")
+    self.MainFrame.Name = "MainFrame"
+    self.MainFrame.Size = UDim2.new(0, 600, 0, 350)
+    self.MainFrame.Position = UDim2.new(0.5, -300, 0.5, -175)
+    self.MainFrame.BackgroundColor3 = self.Colors.Background
+    self.MainFrame.BorderSizePixel = 0
+    self.MainFrame.Parent = self.ScreenGui
+    
+    -- ทำมุมให้โค้ง
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 8)
+    UICorner.Parent = self.MainFrame
+    
+    -- สร้างส่วนบาร์ด้านบน
+    self.TopBar = Instance.new("Frame")
+    self.TopBar.Name = "TopBar"
+    self.TopBar.Size = UDim2.new(1, 0, 0, 35)
+    self.TopBar.BackgroundColor3 = self.Colors.Secondary
+    self.TopBar.BorderSizePixel = 0
+    self.TopBar.Parent = self.MainFrame
+    
+    local TopBarCorner = Instance.new("UICorner")
+    TopBarCorner.CornerRadius = UDim.new(0, 8)
+    TopBarCorner.Parent = self.TopBar
+    
+    -- ปรับให้มุมล่างไม่โค้ง
+    local TopBarFrame = Instance.new("Frame")
+    TopBarFrame.Name = "BottomCover"
+    TopBarFrame.Size = UDim2.new(1, 0, 0.5, 0)
+    TopBarFrame.Position = UDim2.new(0, 0, 0.5, 0)
+    TopBarFrame.BackgroundColor3 = self.Colors.Secondary
+    TopBarFrame.BorderSizePixel = 0
+    TopBarFrame.Parent = self.TopBar
+    
+    -- ข้อความชื่อไลบรารี
+    self.TitleLabel = Instance.new("TextLabel")
+    self.TitleLabel.Name = "TitleLabel"
+    self.TitleLabel.Size = UDim2.new(0.5, 0, 1, 0)
+    self.TitleLabel.BackgroundTransparency = 1
+    self.TitleLabel.Text = self.Title
+    self.TitleLabel.TextColor3 = self.Colors.Text
+    self.TitleLabel.TextSize = 18
+    self.TitleLabel.Font = Enum.Font.GothamBold
+    self.TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    self.TitleLabel.Parent = self.TopBar
+    self.TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+    
+    -- ปุ่มปิด
+    self.CloseButton = Instance.new("TextButton")
+    self.CloseButton.Name = "CloseButton"
+    self.CloseButton.Size = UDim2.new(0, 25, 0, 25)
+    self.CloseButton.Position = UDim2.new(1, -30, 0, 5)
+    self.CloseButton.BackgroundColor3 = self.Colors.Error
+    self.CloseButton.BorderSizePixel = 0
+    self.CloseButton.Text = "X"
+    self.CloseButton.TextColor3 = self.Colors.Text
+    self.CloseButton.TextSize = 14
+    self.CloseButton.Font = Enum.Font.GothamBold
+    self.CloseButton.Parent = self.TopBar
+    
+    local CloseButtonCorner = Instance.new("UICorner")
+    CloseButtonCorner.CornerRadius = UDim.new(0, 4)
+    CloseButtonCorner.Parent = self.CloseButton
+    
+    -- ปุ่มย่อ
+    self.MinimizeButton = Instance.new("TextButton")
+    self.MinimizeButton.Name = "MinimizeButton"
+    self.MinimizeButton.Size = UDim2.new(0, 25, 0, 25)
+    self.MinimizeButton.Position = UDim2.new(1, -65, 0, 5)
+    self.MinimizeButton.BackgroundColor3 = self.Colors.Secondary
+    self.MinimizeButton.BorderSizePixel = 0
+    self.MinimizeButton.Text = "-"
+    self.MinimizeButton.TextColor3 = self.Colors.Text
+    self.MinimizeButton.TextSize = 20
+    self.MinimizeButton.Font = Enum.Font.GothamBold
+    self.MinimizeButton.Parent = self.TopBar
+    
+    local MinimizeButtonCorner = Instance.new("UICorner")
+    MinimizeButtonCorner.CornerRadius = UDim.new(0, 4)
+    MinimizeButtonCorner.Parent = self.MinimizeButton
+    
+    -- สร้างส่วนแท็บ
+    self.TabFrame = Instance.new("Frame")
+    self.TabFrame.Name = "TabFrame"
+    self.TabFrame.Size = UDim2.new(0.25, 0, 1, -35)
+    self.TabFrame.Position = UDim2.new(0, 0, 0, 35)
+    self.TabFrame.BackgroundColor3 = self.Colors.Secondary
+    self.TabFrame.BorderSizePixel = 0
+    self.TabFrame.Parent = self.MainFrame
+    
+    -- สร้างพื้นที่แสดงเนื้อหา
+    self.ContentFrame = Instance.new("Frame")
+    self.ContentFrame.Name = "ContentFrame"
+    self.ContentFrame.Size = UDim2.new(0.75, 0, 1, -35)
+    self.ContentFrame.Position = UDim2.new(0.25, 0, 0, 35)
+    self.ContentFrame.BackgroundColor3 = self.Colors.Background
+    self.ContentFrame.BorderSizePixel = 0
+    self.ContentFrame.Parent = self.MainFrame
+    
+    -- สร้าง ScrollingFrame สำหรับแท็บ
+    self.TabScrollFrame = Instance.new("ScrollingFrame")
+    self.TabScrollFrame.Name = "TabScrollFrame"
+    self.TabScrollFrame.Size = UDim2.new(1, 0, 1, 0)
+    self.TabScrollFrame.BackgroundTransparency = 1
+    self.TabScrollFrame.BorderSizePixel = 0
+    self.TabScrollFrame.ScrollBarThickness = 4
+    self.TabScrollFrame.ScrollBarImageColor3 = self.Colors.Accent
+    self.TabScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    self.TabScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    self.TabScrollFrame.Parent = self.TabFrame
+    
+    -- จัดระยะห่างแท็บ
+    local UIListLayout = Instance.new("UIListLayout")
+    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout.Padding = UDim.new(0, 2)
+    UIListLayout.Parent = self.TabScrollFrame
+    
+    -- ระยะขอบ
+    local UIPadding = Instance.new("UIPadding")
+    UIPadding.PaddingTop = UDim.new(0, 5)
+    UIPadding.PaddingLeft = UDim.new(0, 5)
+    UIPadding.PaddingRight = UDim.new(0, 5)
+    UIPadding.PaddingBottom = UDim.new(0, 5)
+    UIPadding.Parent = self.TabScrollFrame
+    
+    -- ระยะขอบสำหรับ Content
+    local ContentPadding = Instance.new("UIPadding")
+    ContentPadding.PaddingTop = UDim.new(0, 10)
+    ContentPadding.PaddingLeft = UDim.new(0, 10)
+    ContentPadding.PaddingRight = UDim.new(0, 10)
+    ContentPadding.PaddingBottom = UDim.new(0, 10)
+    ContentPadding.Parent = self.ContentFrame
+    
+    -- เพิ่ม Color Picker Button
+    self.ColorPickerButton = Instance.new("TextButton")
+    self.ColorPickerButton.Name = "ColorPickerButton"
+    self.ColorPickerButton.Size = UDim2.new(0, 25, 0, 25)
+    self.ColorPickerButton.Position = UDim2.new(1, -100, 0, 5)
+    self.ColorPickerButton.BackgroundColor3 = self.Colors.Accent
+    self.ColorPickerButton.BorderSizePixel = 0
+    self.ColorPickerButton.Text = "🎨"
+    self.ColorPickerButton.TextColor3 = self.Colors.Text
+    self.ColorPickerButton.TextSize = 14
+    self.ColorPickerButton.Font = Enum.Font.GothamBold
+    self.ColorPickerButton.Parent = self.TopBar
+    
+    local ColorPickerCorner = Instance.new("UICorner")
+    ColorPickerCorner.CornerRadius = UDim.new(0, 4)
+    ColorPickerCorner.Parent = self.ColorPickerButton
+    
+    -- ใส่การทำงานให้ปุ่ม
+    self:SetupButtonEvents()
+    self:SetupDragging()
+    
+    return self
+end
+
+-- ตั้งค่าการทำงานของปุ่ม
+function LibraryGUI:SetupButtonEvents()
+    -- ปุ่มปิด
+    self.CloseButton.MouseButton1Click:Connect(function()
+        self.ScreenGui:Destroy()
+    end)
+    
+    -- ปุ่มย่อ
+    local minimized = false
+    self.MinimizeButton.MouseButton1Click:Connect(function()
+        if minimized then
+            self.MainFrame:TweenSize(UDim2.new(0, 600, 0, 350), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.5, true)
+            self.MinimizeButton.Text = "-"
+        else
+            self.MainFrame:TweenSize(UDim2.new(0, 600, 0, 35), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.5, true)
+            self.MinimizeButton.Text = "+"
+        end
+        minimized = not minimized
+    end)
+    
+    -- ปุ่มเลือกสี
+    self.ColorPickerButton.MouseButton1Click:Connect(function()
+        self:OpenColorPicker()
+    end)
+end
+
+-- ตั้งค่าการลาก GUI
+function LibraryGUI:SetupDragging()
+    self.TopBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            self.Dragging = true
+            self.DragStart = input.Position
+            self.StartPosition = self.MainFrame.Position
+        end
+    end)
+    
+    self.TopBar.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            self.Dragging = false
+        end
+    end)
+    
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if self.Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - self.DragStart
+            self.MainFrame.Position = UDim2.new(
+                self.StartPosition.X.Scale,
+                self.StartPosition.X.Offset + delta.X,
+                self.StartPosition.Y.Scale,
+                self.StartPosition.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- สร้าง Color Picker
+function LibraryGUI:OpenColorPicker()
+    -- ลบ Color Picker เก่าถ้ามี
+    if self.ColorPickerFrame then
+        self.ColorPickerFrame:Destroy()
+    end
+    
+    -- สร้าง Color Picker ใหม่
+    self.ColorPickerFrame = Instance.new("Frame")
+    self.ColorPickerFrame.Name = "ColorPickerFrame"
+    self.ColorPickerFrame.Size = UDim2.new(0, 220, 0, 200)
+    self.ColorPickerFrame.Position = UDim2.new(1, -230, 0, 40)
+    self.ColorPickerFrame.BackgroundColor3 = self.Colors.Secondary
+    self.ColorPickerFrame.BorderSizePixel = 0
+    self.ColorPickerFrame.ZIndex = 10
+    self.ColorPickerFrame.Parent = self.TopBar
+    
+    local ColorPickerCorner = Instance.new("UICorner")
+    ColorPickerCorner.CornerRadius = UDim.new(0, 6)
+    ColorPickerCorner.Parent = self.ColorPickerFrame
+    
+    -- หัวข้อ
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Name = "TitleLabel"
+    TitleLabel.Size = UDim2.new(1, 0, 0, 30)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = "Color Theme"
+    TitleLabel.TextColor3 = self.Colors.Text
+    TitleLabel.TextSize = 16
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.Parent = self.ColorPickerFrame
+    
+    -- สร้างตัวเลือกสี
+    local themes = {
+        {name = "Default Blue", accent = Color3.fromRGB(85, 170, 255)},
+        {name = "Purple", accent = Color3.fromRGB(170, 85, 255)},
+        {name = "Green", accent = Color3.fromRGB(85, 255, 127)},
+        {name = "Red", accent = Color3.fromRGB(255, 85, 85)},
+        {name = "Orange", accent = Color3.fromRGB(255, 170, 0)}
+    }
+    
+    -- สร้างปุ่มสำหรับแต่ละธีม
+    for i, theme in ipairs(themes) do
+        local Button = Instance.new("TextButton")
+        Button.Name = theme.name .. "Button"
+        Button.Size = UDim2.new(0.9, 0, 0, 25)
+        Button.Position = UDim2.new(0.05, 0, 0, 35 + (i-1) * 30)
+        Button.BackgroundColor3 = theme.accent
+        Button.BorderSizePixel = 0
+        Button.Text = theme.name
+        Button.TextColor3 = self.Colors.Text
+        Button.TextSize = 14
+        Button.Font = Enum.Font.Gotham
+        Button.Parent = self.ColorPickerFrame
+        Button.ZIndex = 11
+        
+        local ButtonCorner = Instance.new("UICorner")
+        ButtonCorner.CornerRadius = UDim.new(0, 4)
+        ButtonCorner.Parent = Button
+        
+        -- เพิ่มการทำงานเมื่อกดปุ่ม
+        Button.MouseButton1Click:Connect(function()
+            self:ChangeTheme(theme.accent)
+            self.ColorPickerFrame:Destroy()
+            self.ColorPickerFrame = nil
+        end)
+    end
+end
+
+-- เปลี่ยนธีมสี
+function LibraryGUI:ChangeTheme(accentColor)
+    self.Colors.Accent = accentColor
+    self.Colors.Highlight = accentColor:Lerp(Color3.fromRGB(255, 255, 255), 0.2)
+    
+    -- อัพเดทสีองค์ประกอบต่างๆ
+    self.ColorPickerButton.BackgroundColor3 = self.Colors.Accent
+    self.TabScrollFrame.ScrollBarImageColor3 = self.Colors.Accent
+    
+    -- อัพเดทสีแท็บปัจจุบัน
+    if self.CurrentTabButton then
+        self.CurrentTabButton.BackgroundColor3 = self.Colors.Accent
+    end
+    
+    -- อัพเดทสีขององค์ประกอบอื่นๆที่เพิ่มไว้
+    for _, element in pairs(self.Elements) do
+        if element.Type == "Toggle" then
+            if element.Value then
+                element.ToggleButton.BackgroundColor3 = self.Colors.Accent
+            end
+        elseif element.Type == "Button" then
+            element.Button.BackgroundColor3 = self.Colors.Secondary
+            element.Button.UIStroke.Color = self.Colors.Accent
+        elseif element.Type == "Slider" then
+            element.SliderFill.BackgroundColor3 = self.Colors.Accent
+            element.SliderButton.BackgroundColor3 = self.Colors.Accent
+        end
+    end
+end
+
+-- สร้างแท็บใหม่
+function LibraryGUI:CreateTab(tabName)
+    -- สร้างปุ่มแท็บ
+    local TabButton = Instance.new("TextButton")
+    TabButton.Name = tabName .. "Tab"
+    TabButton.Size = UDim2.new(1, 0, 0, 35)
+    TabButton.BackgroundColor3 = self.Colors.Secondary
+    TabButton.BorderSizePixel = 0
+    TabButton.Text = tabName
+    TabButton.TextColor3 = self.Colors.Text
+    TabButton.TextSize = 14
+    TabButton.Font = Enum.Font.Gotham
+    TabButton.Parent = self.TabScrollFrame
+    
+    local TabCorner = Instance.new("UICorner")
+    TabCorner.CornerRadius = UDim.new(0, 4)
+    TabCorner.Parent = TabButton
+    
+    -- สร้างพื้นที่เนื้อหาแท็บ
+    local TabContent = Instance.new("ScrollingFrame")
+    TabContent.Name = tabName .. "Content"
+    TabContent.Size = UDim2.new(1, 0, 1, 0)
+    TabContent.BackgroundTransparency = 1
+    TabContent.BorderSizePixel = 0
+    TabContent.ScrollBarThickness = 4
+    TabContent.ScrollBarImageColor3 = self.Colors.Accent
+    TabContent.Visible = false
+    TabContent.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    TabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+    TabContent.Parent = self.ContentFrame
+    
+    -- จัดระยะห่างระหว่างองค์ประกอบในแท็บ
+    local UIListLayout = Instance.new("UIListLayout")
+    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout.Padding = UDim.new(0, 8)
+    UIListLayout.Parent = TabContent
+    
+    -- เพิ่มข้อมูลแท็บ
+    local tab = {
+        Name = tabName,
+        Button = TabButton,
+        Content = TabContent,
+        Elements = {}
+    }
+    
+    -- เพิ่มในรายการแท็บ
+    table.insert(self.Tabs, tab)
+    
+    -- ตั้งค่าการทำงานเมื่อกดปุ่มแท็บ
+    TabButton.MouseButton1Click:Connect(function()
+        self:SelectTab(tabName)
+    end)
+    
+    -- ถ้าเป็นแท็บแรกให้เลือกไว้
+    if #self.Tabs == 1 then
+        self:SelectTab(tabName)
+    end
+    
+    -- สร้างฟังก์ชันสำหรับแท็บนี้
+    local tabFunctions = {}
+    
+    -- ฟังก์ชันสร้าง Label
+    function tabFunctions:CreateLabel(text)
+        local Label = Instance.new("TextLabel")
+        Label.Name = "Label"
+        Label.Size = UDim2.new(1, 0, 0, 25)
+        Label.BackgroundTransparency = 1
+        Label.Text = text
+        Label.TextColor3 = self.Parent.Colors.Text
+        Label.TextSize = 14
+        Label.Font = Enum.Font.Gotham
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Parent = TabContent
+        
+        local labelObj = {
+            Type = "Label",
+            Label = Label
+        }
+        
+        table.insert(tab.Elements, labelObj)
+        table.insert(self.Parent.Elements, labelObj)
+        
+        return labelObj
+    end
+    
+    -- ฟังก์ชันสร้าง Toggle
+    function tabFunctions:CreateToggle(name, defaultValue, callback)
+        -- สร้างกรอบหลัก
+        local ToggleFrame = Instance.new("Frame")
+        ToggleFrame.Name = name .. "Toggle"
+        ToggleFrame.Size = UDim2.new(1, 0, 0, 35)
+        ToggleFrame.BackgroundTransparency = 1
+        ToggleFrame.Parent = TabContent
+        
+        -- ข้อความ
+        local ToggleLabel = Instance.new("TextLabel")
+        ToggleLabel.Name = "ToggleLabel"
+        ToggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+        ToggleLabel.BackgroundTransparency = 1
+        ToggleLabel.Text = name
+        ToggleLabel.TextColor3 = self.Parent.Colors.Text
+        ToggleLabel.TextSize = 14
+        ToggleLabel.Font = Enum.Font.Gotham
+        ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+        ToggleLabel.Parent = ToggleFrame
+        
+        -- ปุ่ม Toggle
+        local ToggleButton = Instance.new("Frame")
+        ToggleButton.Name = "ToggleButton"
+        ToggleButton.Size = UDim2.new(0, 40, 0, 20)
+        ToggleButton.Position = UDim2.new(1, -50, 0.5, -10)
+        ToggleButton.BackgroundColor3 = defaultValue and self.Parent.Colors.Accent or self.Parent.Colors.Secondary
+        ToggleButton.BorderSizePixel = 0
+        ToggleButton.Parent = ToggleFrame
+        
+        local ToggleCorner = Instance.new("UICorner")
+        ToggleCorner.CornerRadius = UDim.new(1, 0)
+        ToggleCorner.Parent = ToggleButton
+        
+        -- วงกลมภายในปุ่ม
+        local ToggleCircle = Instance.new("Frame")
+        ToggleCircle.Name = "ToggleCircle"
+        ToggleCircle.Size = UDim2.new(0, 16, 0, 16)
+        ToggleCircle.Position = defaultValue and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+        ToggleCircle.BackgroundColor3 = self.Parent.Colors.Text
+        ToggleCircle.BorderSizePixel = 0
+        ToggleCircle.Parent = ToggleButton
+        
+        local CircleCorner = Instance.new("UICorner")
+        CircleCorner.CornerRadius = UDim.new(1, 0)
+        CircleCorner.Parent = ToggleCircle
+        
+        -- พื้นที่กดได้
+        local ToggleClick = Instance.new("TextButton")
+        ToggleClick.Name = "ToggleClick"
+        ToggleClick.Size = UDim2.new(1, 0, 1, 0)
+        ToggleClick.BackgroundTransparency = 1
+        ToggleClick.Text = ""
+        ToggleClick.Parent = ToggleFrame
+        
+        -- สร้าง Object Toggle
+        local value = defaultValue or false
+        local toggleObj = {
+            Type = "Toggle",
+            Name = name,
+            Value = value,
+            ToggleFrame = ToggleFrame,
+            ToggleButton = ToggleButton,
+            ToggleCircle = ToggleCircle,
+            Callback = callback
+        }
+        
+        -- ฟังก์ชันอัพเดท Toggle
+        function toggleObj:Set(newValue)
+            self.Value = newValue
+            
+            if newValue then
+                self.ToggleButton.BackgroundColor3 = self.Parent.Colors.Accent
+                self.ToggleCircle:TweenPosition(
+                    UDim2.new(1, -18, 0.5, -8),
+                    Enum.EasingDirection.Out,
+                    Enum.EasingStyle.Quart,
+                    0.2,
+                    true
+                )
+            else
+                self.ToggleButton.BackgroundColor3 = self.Parent.Colors.Secondary
+                self.ToggleCircle:TweenPosition(
+                    UDim2.new(0, 2, 0.5, -8),
+                    Enum.EasingDirection.Out,
+                    Enum.EasingStyle.Quart,
+                    0.2,
+                    true
+                )
+            end
+            
+            if self.Callback then
+                self.Callback(self.Value)
+            end
+        end
+        
+        -- เพิ่มการทำงานเมื่อกด
+        ToggleClick.MouseButton1Click:Connect(function()
+            toggleObj:Set(not toggleObj.Value)
+        end)
+        
+        toggleObj.Parent = self.Parent
+        
+        table.insert(tab.Elements, toggleObj)
+        table.insert(self.Parent.Elements, toggleObj)
+        
+        return toggleObj
+    end
+    
+    -- ฟังก์ชันสร้าง Button
+    function tabFunctions:CreateButton(name, callback)
+        local Button = Instance.new("TextButton")
+        Button.Name = name .. "Button"
+        Button.Size = UDim2.new(1, 0, 0, 35)
+        Button.BackgroundColor3 = self.Parent.Colors.Secondary
+        Button.BorderSizePixel = 0
+        Button.Text = name
+        Button.TextColor3 = self.Parent.Colors.Text
+        Button.TextSize = 14
+        Button.Font = Enum.Font.Gotham
+        Button.Parent = TabContent
+        
+        local ButtonCorner = Instance.new("UICorner")
+        ButtonCorner.CornerRadius = UDim.new(0, 4)
+        ButtonCorner.Parent = Button
+        
+        -- เพิ่มเอฟเฟคเมื่อเมาส์อยู่เหนือปุ่ม
+        local UIStroke = Instance.new("UIStroke")
+        UIStroke.Color = self.Parent.Colors.Accent
+        UIStroke.Thickness = 1
+        UIStroke.Parent = Button
+        
+        -- สร้าง Object Button
+        local buttonObj = {
+            Type = "Button",
+            Name = name,
+            Button = Button,
+            UIStroke = UIStroke,
+            Callback = callback
+        }
+        
+        -- เพิ่มการทำงานเมื่อกด
+        Button.MouseButton1Click:Connect(function()
+            if buttonObj.Callback then
+                buttonObj.Callback()
+            end
+        end)
+        
+        -- เพิ่มเอฟเฟคเมื่อกด
+        Button.MouseButton1Down:Connect(function()
+            Button:TweenSize(
+                UDim2.new(1, 0, 0, 35),
+                Enum.EasingDirection.Out,
+                Enum.EasingStyle.Quart,
+                0.1,
+                true
+            )
+        end)
+        
+        buttonObj.Parent = self.Parent
+        
+        table.insert(tab.Elements, buttonObj)
+        table.insert(self.Parent.Elements, buttonObj)
+        
+        return buttonObj
+    end
+    
+    -- ฟังก์ชันสร้าง Slider
+    function tabFunctions:CreateSlider(name, min, max, default, callback)
+        -- สร้างกรอบหลัก
+        local SliderFrame = Instance.new("Frame")
+        SliderFrame.Name = name .. "Slider"
+        SliderFrame.Size = UDim2.new(1, 0, 0, 50)
+        SliderFrame.BackgroundTransparency = 1
+        SliderFrame.Parent = TabContent
+        
+        -- ข้อความ
+        local SliderLabel = Instance.new("TextLabel")
+        SliderLabel.Name = "SliderLabel"
+        SliderLabel.Size = UDim2.new(1, 0, 0, 20)
+        SliderLabel.BackgroundTransparency = 1
+        SliderLabel.Text = name
+        SliderLabel.TextColor3 = self.Parent.Colors.Text
+        SliderLabel.TextSize = 14
+        SliderLabel.Font = Enum.Font.Gotham
+        SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+        SliderLabel.Parent = SliderFrame
+        
+        -- แถบ Slider
+        local SliderBar = Instance.new("Frame")
+        SliderBar.Name = "SliderBar"
+        SliderBar.Size = UDim2.new(1, 0, 0, 6)
+        SliderBar.Position = UDim2.new(0, 0, 0.7, 0)
+        SliderBar.BackgroundColor3 = self.Parent.Colors.Secondary
+        SliderBar.BorderSizePixel = 0
+        SliderBar.Parent = SliderFrame
+        
+        local BarCorner = Instance.new("UICorner")
+        BarCorner.CornerRadius = UDim.new(1, 0)
+        BarCorner.Parent = SliderBar
+        
+        -- แถบสีที่เติม
+        local SliderFill = Instance.new("Frame")
+        SliderFill.Name = "SliderFill"
+        SliderFill.Size = UDim2.new(0, 0, 1, 0)
+        SliderFill.BackgroundColor3 = self.Parent.Colors.Accent
+        SliderFill.BorderSizePixel = 0
+        SliderFill.Parent = SliderBar
+        
+        local FillCorner = Instance.new("UICorner")
+        FillCorner.CornerRadius = UDim.new(1, 0)
+        FillCorner.Parent = SliderFill
+        
+        -- ปุ่มเลื่อน
+        local SliderButton = Instance.new("Frame")
+        SliderButton.Name = "SliderButton"
+        SliderButton.Size = UDim2.new(0, 14, 0, 14)
+        SliderButton.Position = UDim2.new(0, -7, 0.5, -7)
+        SliderButton.BackgroundColor3 = self.Parent.Colors.Accent
+        SliderButton.BorderSizePixel = 0
+        SliderButton.Parent = SliderFill
+        
+        local ButtonCorner = Instance.new("UICorner")
+        ButtonCorner.CornerRadius = UDim.new(1, 0)
+        ButtonCorner.Parent = SliderButton
+        
+        -- ค่าที่แสดง
+        local ValueLabel = Instance.new("TextLabel")
+        ValueLabel.Name = "ValueLabel"
+        ValueLabel.Size = UDim2.new(0, 50, 0, 20)
+        ValueLabel.Position = UDim2.new(1, -50, 0, 0)
+        ValueLabel.BackgroundTransparency = 1
+        ValueLabel.Text = tostring(default)
+        ValueLabel.TextColor3 = self.Parent.Colors.Text
+        ValueLabel.TextSize = 14
+        ValueLabel.Font = Enum.Font.Gotham
+        ValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+        ValueLabel.Parent = SliderFrame
+        
+        -- พื้นที่กดได้
+        local SliderClick = Instance.new("TextButton")
+        SliderClick.Name = "SliderClick"
+        SliderClick.Size = UDim2.new(1, 0, 1, 0)
+        SliderClick.BackgroundTransparency = 1
+        SliderClick.Text = ""
+        SliderClick.Parent = SliderFrame
+        
+        -- สร้าง Object Slider
+        local value = default or min
+        local sliderObj = {
+            Type = "Slider",
+            Name = name,
+            Value = value,
+            Min = min,
+            Max = max,
+            SliderFrame = SliderFrame,
+            SliderFill = SliderFill,
+            SliderButton = SliderButton,
+            ValueLabel = ValueLabel,
+            Callback = callback
+        }
+        
+        -- ฟังก์ชันอัพเดท Slider
+        function sliderObj:Set(newValue)
+            -- จำกัดค่าให้อยู่ในช่วง
+            self.Value = math.clamp(newValue, self.Min, self.Max)
+            
+            -- คำนวณสัดส่วน
+            local percent = (self.Value - self.Min) / (self.Max - self.Min)
+            
+            -- อัพเดทการแสดงผล
+            self.SliderFill:TweenSize(
+                UDim2.new(percent, 0, 1, 0),
+                Enum.EasingDirection.Out,
+                Enum.EasingStyle.Quart,
+                0.1,
+                true
+            )
+            
+            self.ValueLabel.Text = tostring(math.round(self.Value))
+            
+            if self.Callback then
+                self.Callback(self.Value)
+            end
+        end
+        
+        -- ตั้งค่าการทำงานเมื่อลาก
+        local dragging = false
+        
+        SliderClick.MouseButton1Down:Connect(function()
+            dragging = true
+        end)
+        
+        game:GetService("UserInputService").InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = false
+            end
+        end)
+        
+        game:GetService("UserInputService").InputChanged:Connect(function(input)
+            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                -- คำนวณค่าจากตำแหน่งเมาส์
+                local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+                local sliderPos = SliderBar.AbsolutePosition
+                local sliderSize = SliderBar.AbsoluteSize
+                
+                local percent = math.clamp((mousePos.X - sliderPos.X) / sliderSize.X, 0, 1)
+                local value = self.Min + ((self.Max - self.Min) * percent)
+                
+                sliderObj:Set(value)
+            end
+        end)
+        
+        -- ตั้งค่าเริ่มต้น
+        sliderObj:Set(value)
+        
+        sliderObj.Parent = self.Parent
+        
+        table.insert(tab.Elements, sliderObj)
+        table.insert(self.Parent.Elements, sliderObj)
+        
+        return sliderObj
+    end
+    
+    tabFunctions.Parent = self
+    return tabFunctions
+end
+
+-- เลือกแท็บ
+function LibraryGUI:SelectTab(tabName)
+    -- ซ่อนแท็บเดิม
+    if self.CurrentTab then
+        self.CurrentTab.Content.Visible = false
+        self.CurrentTab.Button.BackgroundColor3 = self.Colors.Secondary
+    end
+    
+    -- หาแท็บใหม่
+    for _, tab in ipairs(self.Tabs) do
+        if tab.Name == tabName then
+            -- แสดงแท็บใหม่
+            tab.Content.Visible = true
+            tab.Button.BackgroundColor3 = self.Colors.Accent
+            self.CurrentTab = tab
+            self.CurrentTabButton = tab.Button
+            break
+        end
+    end
+end
+
+return LibraryGUI
